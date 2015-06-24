@@ -84,7 +84,7 @@ func main() {
 		// Discard all global out-of-band Requests
 		go ssh.DiscardRequests(reqs)
 		// Accept all channels
-		go handleChannels(chans)
+		go handleChannels(sshConn, chans)
 	}
 }
 
@@ -103,14 +103,14 @@ func passwordAuth(c ssh.ConnMetadata, pass []byte) (*ssh.Permissions, error) {
 	return nil, fmt.Errorf("password rejected for %q", c.User())
 }
 
-func handleChannels(chans <-chan ssh.NewChannel) {
+func handleChannels(s ssh.Conn, chans <-chan ssh.NewChannel) {
 	// Service the incoming Channel channel in go routine
 	for newChannel := range chans {
-		go handleChannel(newChannel)
+		go handleChannel(s, newChannel)
 	}
 }
 
-func handleChannel(newChannel ssh.NewChannel) {
+func handleChannel(s ssh.Conn, newChannel ssh.NewChannel) {
 	// Since we're handling a shell, we expect a
 	// channel type of "session". The also describes
 	// "x11", "direct-tcpip" and "forwarded-tcpip"
@@ -134,7 +134,7 @@ func handleChannel(newChannel ssh.NewChannel) {
 	endpoint := "unix:///var/run/docker.sock"
 	client, _ := docker.NewClient(endpoint)
 	execConfig := docker.CreateExecOptions{
-		Container: "606",
+		Container: s.User(),
 		AttachStdin: true,
 		AttachStdout: true,
 		AttachStderr: true,
@@ -189,13 +189,16 @@ func handleChannel(newChannel ssh.NewChannel) {
 		var e *docker.ExecInspect
 		var err error
 		for {
-			log.Printf("Checking if process done")
 			e, err = client.InspectExec(execObj.ID)
 			if err != nil {
+				log.Printf("Error inspecting exec")
 				close() 
+				break
 			}
 			if e.Running == false {
+				log.Printf("Exec Complete")
 				close()
+				break
 			}
 			time.Sleep(time.Duration(2) * time.Second)
 
