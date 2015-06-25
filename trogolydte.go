@@ -1,6 +1,10 @@
-// A small SSH daemon providing bash sessions into containers
+// A small SSH daemon providing bash sessions into docker containers.
 //
+
 // docker run -t -i ubuntu:14.04 sleep 10000
+// trogolodyte -p 2200
+// ssh container_id@localhost -p 2200
+
 
 // Server:
 // cd my/new/dir/
@@ -11,6 +15,13 @@
 //
 // Client:
 // ssh foo@localhost -p 2200 #pass=bar
+
+// TODO
+// - flags
+// - docker api location
+// - docker tls config
+// - server private key
+// - client pub key
 
 package main
 
